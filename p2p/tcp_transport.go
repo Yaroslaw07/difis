@@ -22,6 +22,7 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	}
 }
 
+// close implements of the Peer interface
 func (p *TCPPeer) Close() error {
 	return p.conn.Close()
 }
