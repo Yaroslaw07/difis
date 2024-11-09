@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"strings"
@@ -14,6 +15,16 @@ import (
 type PathKey struct {
 	PathName string
 	Filename string
+}
+
+func (p PathKey) FirstPathName() string {
+	paths := strings.Split(p.PathName, "/")
+
+	if len(paths) == 0 {
+		return ""
+	}
+
+	return paths[0]
 }
 
 func (p PathKey) FullPath() string {
@@ -74,6 +85,23 @@ func (s *Store) Read(key string) (io.Reader, error) {
 	_, err = io.Copy(buf, f)
 
 	return buf, err
+}
+
+func (s *Store) Delete(key string) error {
+	pathKey := s.PathTransformFunc(key)
+
+	defer func() {
+		log.Printf("deleted: [%s] from disk", pathKey.Filename)
+	}()
+
+	return os.RemoveAll(pathKey.FirstPathName())
+}
+
+func (s *Store) Has(key string) bool {
+	PathKey := s.PathTransformFunc(key)
+
+	_, err := os.Stat(PathKey.FullPath())
+	return err != fs.ErrNotExist
 }
 
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
