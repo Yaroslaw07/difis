@@ -5,6 +5,6 @@ run: build
 	./bin/difis
 
 test:
-	go test -v ./...
+	go test  ./...
 
 
