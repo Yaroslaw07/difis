@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"os"
 	"strings"
 )
+
+const defaultRootFolderName = "difistore"
 
 type PathKey struct {
 	PathName string
@@ -61,6 +63,8 @@ func CASPathTransformFunc(key string) PathKey {
 }
 
 type StoreOpts struct {
+	//Root is name the of the directory, where all the files of the system will be stored
+	Root              string
 	PathTransformFunc PathTransformFunc
 }
 
@@ -69,6 +73,14 @@ type Store struct {
 }
 
 func NewStore(opts StoreOpts) *Store {
+	if opts.PathTransformFunc == nil {
+		opts.PathTransformFunc = DefaultPathTransformFunc
+	}
+
+	if len(opts.Root) == 0 {
+		opts.Root = defaultRootFolderName
+	}
+
 	return &Store{
 		StoreOpts: opts,
 	}
@@ -94,43 +106,46 @@ func (s *Store) Delete(key string) error {
 		log.Printf("deleted: [%s] from disk", pathKey.Filename)
 	}()
 
-	return os.RemoveAll(pathKey.FirstPathName())
+	fistPathNameWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FirstPathName())
+
+	return os.RemoveAll(fistPathNameWithRoot)
 }
 
 func (s *Store) Has(key string) bool {
-	PathKey := s.PathTransformFunc(key)
+	pathKey := s.PathTransformFunc(key)
+	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
 
-	_, err := os.Stat(PathKey.FullPath())
-	return err != fs.ErrNotExist
+	_, err := os.Stat(fullPathWithRoot)
+	return !errors.Is(err, os.ErrNotExist)
 }
 
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	pathKey := s.PathTransformFunc(key)
-	return os.Open(pathKey.FullPath())
+	pathKeyWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
+	return os.Open(pathKeyWithRoot)
 }
 
 func (s *Store) writeStream(key string, r io.Reader) error {
 	pathKey := s.PathTransformFunc(key)
+	pathNameWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.PathName)
 
-	if err := os.MkdirAll(pathKey.PathName, os.ModePerm); err != nil {
+	if err := os.MkdirAll(pathNameWithRoot, os.ModePerm); err != nil {
 		return err
 	}
 
-	fullPath := pathKey.FullPath()
+	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
 
-	file, err := os.Create(fullPath)
-
+	file, err := os.Create(fullPathWithRoot)
 	if err != nil {
 		return err
 	}
 
 	numbOfBytes, err := io.Copy(file, r)
-
 	if err != nil {
 		return err
 	}
 
-	log.Printf("written (%d) bytes to disk: %s", numbOfBytes, fullPath)
+	log.Printf("written (%d) bytes to disk: %s", numbOfBytes, fullPathWithRoot)
 
 	return nil
 }

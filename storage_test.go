@@ -26,7 +26,6 @@ func TestStoreDeleteKey(t *testing.T) {
 	opts := StoreOpts{
 		PathTransformFunc: CASPathTransformFunc,
 	}
-
 	s := NewStore(opts)
 	key := "bestpic"
 	data := []byte("some data")
@@ -44,7 +43,6 @@ func TestStore(t *testing.T) {
 	opts := StoreOpts{
 		PathTransformFunc: CASPathTransformFunc,
 	}
-
 	s := NewStore(opts)
 	key := "bestpic"
 	data := []byte("some data")
@@ -53,20 +51,19 @@ func TestStore(t *testing.T) {
 		t.Errorf("writeStream failed: %v", err)
 	}
 
+	if ok := s.Has(key); !ok {
+		t.Errorf("Has failed: %v", ok)
+	}
+
 	r, err := s.Read(key)
 	if err != nil {
 		t.Errorf("Read failed: %v", err)
 	}
 
 	b, _ := io.ReadAll(r)
-
 	if string(b) != string(data) {
 		t.Errorf("want %s, have %s", data, b)
 	}
 
-	err = s.Delete(key)
-
-	if err != nil {
-		t.Errorf("Delete failed: %v", err)
-	}
+	s.Delete(key)
 }
