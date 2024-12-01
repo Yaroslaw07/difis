@@ -27,7 +27,7 @@ func (p *TCPPeer) Close() error {
 	return p.conn.Close()
 }
 
-type TCPTransportOps struct {
+type TCPTransportOpts struct {
 	ListenAddr    string
 	HandshakeFunc HandshakeFunc
 	Decoder       Decoder
@@ -35,15 +35,15 @@ type TCPTransportOps struct {
 }
 
 type TCPTransport struct {
-	TCPTransportOps
+	TCPTransportOpts
 	listener net.Listener
 	rpcch    chan RPC
 }
 
-func NewTCPTransport(opts TCPTransportOps) *TCPTransport {
+func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	return &TCPTransport{
-		TCPTransportOps: opts,
-		rpcch:           make(chan RPC),
+		TCPTransportOpts: opts,
+		rpcch:            make(chan RPC),
 	}
 }
 
