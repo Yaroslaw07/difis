@@ -11,8 +11,8 @@ type TCPPeer struct {
 	// conn is the underlying connection to the peer
 	conn net.Conn
 
-	// outbound if dial and retrieve a conn
-	// inbound if accept and retrieve a conn
+	// outbound if dial and retrieve a conn == true
+	// inbound if accept and retrieve a conn == false
 	outbound bool
 }
 
@@ -23,7 +23,20 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	}
 }
 
-// close implements of the Peer interface
+func (p *TCPPeer) Send(b []byte) error {
+	_, err := p.conn.Write(b)
+
+	return err
+}
+
+// RemoteAddr implements of the Peer interface
+// which returns the remote address of the peer
+func (p *TCPPeer) RemoteAddr() net.Addr {
+	return p.conn.RemoteAddr()
+}
+
+// Close implements of the Peer interface
+// which closes the connection to the peer
 func (p *TCPPeer) Close() error {
 	return p.conn.Close()
 }
