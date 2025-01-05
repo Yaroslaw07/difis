@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"log"
+	"time"
 
 	"github.com/Yaroslaw07/difis/p2p"
 )
@@ -21,11 +23,11 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 		BootStrapNodes:    nodes,
 	}
 
-	s := NewFileServer(fileServerOpts)
+	fs := NewFileServer(fileServerOpts)
 
-	tcpTransport.OnPeer = s.OnPeer
+	tcpTransport.OnPeer = fs.OnPeer
 
-	return s
+	return fs
 }
 
 func main() {
@@ -36,6 +38,13 @@ func main() {
 	go func() {
 		log.Fatal(fs1.Start())
 	}()
+	time.Sleep(1 * time.Second)
 
-	fs2.Start()
+	go fs2.Start()
+	time.Sleep(1 * time.Second)
+
+	data := bytes.NewReader([]byte("big data file"))
+	fs2.StoreData("private_data", data)
+
+	select {}
 }
