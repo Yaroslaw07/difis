@@ -42,6 +42,10 @@ func NewFileServer(opts FileServerOpts) *FileServer {
 	}
 }
 
+func init() {
+	gob.Register(MessageStoreFile{})
+}
+
 func (fs *FileServer) Start() error {
 	if err := fs.Transport.ListenAndAccept(); err != nil {
 		return err
@@ -59,34 +63,60 @@ func (fs *FileServer) Stop() {
 }
 
 type Message struct {
-	From    string
 	Payload any
 }
 
-type DataMessage struct {
-	Key  string
-	Data []byte
+type MessageStoreFile struct {
+	Key string
 }
 
 func (fs *FileServer) StoreData(key string, r io.Reader) error {
-	buf := new(bytes.Buffer)
-	tee := io.TeeReader(r, buf)
+	// buf := new(bytes.Buffer)
+	// tee := io.TeeReader(r, buf)
 
-	if err := fs.store.Write(key, tee); err != nil {
+	buf := new(bytes.Buffer)
+	msg := Message{
+		Payload: MessageStoreFile{
+			Key: key,
+		},
+	}
+
+	if err := gob.NewEncoder(buf).Encode(msg); err != nil {
 		return err
 	}
 
-	p := &DataMessage{
-		Key:  key,
-		Data: buf.Bytes(),
+	for _, peer := range fs.peers {
+		if err := peer.Send(buf.Bytes()); err != nil {
+			return err
+		}
 	}
 
-	fmt.Println(p.Data)
+	// time.Sleep(time.Second * 3)
 
-	return fs.broadcast(&Message{
-		From:    "TODO",
-		Payload: p,
-	})
+	// payload := []byte("THIS IS LARGE FILE")
+	// for _, peer := range fs.peers {
+	// 	if err := peer.Send(payload); err != nil {
+	// 		return err
+	// 	}
+	// }
+
+	return nil
+
+	// if err := fs.store.Write(key, tee); err != nil {
+	// 	return err
+	// }
+
+	// p := &DataMessage{
+	// 	Key:  key,
+	// 	Data: buf.Bytes(),
+	// }
+
+	// fmt.Println(p.Data)
+
+	// return fs.broadcast(&Message{
+	// 	From:    "TODO",
+	// 	Payload: p,
+	// })
 }
 
 func (fs *FileServer) Store(key string, r io.Reader) error {
@@ -110,30 +140,45 @@ func (fs *FileServer) loop() {
 
 	for {
 		select {
-		case msg := <-fs.Transport.Consume():
-			var m Message
+		case rpc := <-fs.Transport.Consume():
+			var msg Message
 
-			if err := gob.NewDecoder(bytes.NewReader(msg.Payload)).Decode(&m); err != nil {
+			if err := gob.NewDecoder(bytes.NewReader(rpc.Payload)).Decode(&msg); err != nil {
 				log.Println(err)
 			}
 
-			if err := fs.handleMessage(&m); err != nil {
-				log.Println(err)
+			fmt.Printf("payload: %+v\n", msg.Payload)
+
+			peer, ok := fs.peers[rpc.From]
+			if !ok {
+				panic("peer not found in peer map")
 			}
+
+			b := make([]byte, 1000)
+			if _, err := peer.Read(b); err != nil {
+				panic(err)
+			}
+
+			fmt.Printf("%s\n", string(b))
+			peer.(*p2p.TCPPeer).Wg.Done()
+
+			// if err := fs.handleMessage(&m); err != nil {
+			// 	log.Println(err)
+			// }
 		case <-fs.quitChannel:
 			return
 		}
 	}
 }
 
-func (fs *FileServer) handleMessage(msg *Message) error {
-	switch v := msg.Payload.(type) {
-	case *DataMessage:
-		fmt.Printf("received data %+v\n", v)
-	}
+// func (fs *FileServer) handleMessage(msg *Message) error {
+// 	switch v := msg.Payload.(type) {
+// 	case *DataMessage:
+// 		fmt.Printf("received data %+v\n", v)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (fs *FileServer) broadcast(msg *Message) error {
 	peers := []io.Writer{}
