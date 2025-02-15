@@ -92,20 +92,13 @@ func (fs *FileServer) StoreData(key string, r io.Reader) error {
 		},
 	}
 
-	msgBuf := new(bytes.Buffer)
-
-	if err := gob.NewEncoder(msgBuf).Encode(msg); err != nil {
+	if err := fs.broadcast(&msg); err != nil {
 		return err
-	}
-
-	for _, peer := range fs.peers {
-		if err := peer.Send(msgBuf.Bytes()); err != nil {
-			return err
-		}
 	}
 
 	time.Sleep(time.Second * 3)
 
+	// TODO: use a multiwriter
 	for _, peer := range fs.peers {
 		n, err := io.Copy(peer, fileBuffer)
 
@@ -186,7 +179,7 @@ func (fs *FileServer) handleMessage(from string, msg *Message) error {
 	return nil
 }
 
-func (fs *FileServer) broadcast(msg *Message) error {
+func (fs *FileServer) stream(msg *Message) error {
 	peers := []io.Writer{}
 	for _, peer := range fs.peers {
 		peers = append(peers, peer)
@@ -194,6 +187,22 @@ func (fs *FileServer) broadcast(msg *Message) error {
 
 	mw := io.MultiWriter(peers...)
 	return gob.NewEncoder(mw).Encode(msg)
+}
+
+func (fs *FileServer) broadcast(msg *Message) error {
+	buf := new(bytes.Buffer)
+
+	if err := gob.NewEncoder(buf).Encode(msg); err != nil {
+		return err
+	}
+
+	for _, peer := range fs.peers {
+		if err := peer.Send(buf.Bytes()); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (fs *FileServer) bootstrapNetwork() error {
