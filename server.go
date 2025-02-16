@@ -45,6 +45,7 @@ func NewFileServer(opts FileServerOpts) *FileServer {
 
 func init() {
 	gob.Register(MessageStoreFile{})
+	gob.Register(MessageGetFile{})
 }
 
 func (fs *FileServer) Start() error {
@@ -70,6 +71,43 @@ type Message struct {
 type MessageStoreFile struct {
 	Key  string
 	Size int64
+}
+
+type MessageGetFile struct {
+	Key string
+}
+
+func (fs *FileServer) Get(key string) (io.Reader, error) {
+	if fs.store.Has(key) {
+		return fs.store.Read(key)
+	}
+
+	fmt.Printf("don't have file (%s) locally, fetching from network...\n", key)
+
+	msg := Message{
+		Payload: MessageGetFile{
+			Key: key,
+		},
+	}
+
+	if err := fs.broadcast(&msg); err != nil {
+		return nil, err
+	}
+
+	for _, peer := range fs.peers {
+		fileBuffer := new(bytes.Buffer)
+		n, err := io.CopyN(fileBuffer, peer, 12)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Println("received bytes over the network: ", n)
+		fmt.Println(fileBuffer.String())
+	}
+
+	select {}
+
+	return nil, nil
 }
 
 func (fs *FileServer) StoreData(key string, r io.Reader) error {
@@ -138,11 +176,11 @@ func (fs *FileServer) loop() {
 			var msg Message
 
 			if err := gob.NewDecoder(bytes.NewReader(rpc.Payload)).Decode(&msg); err != nil {
-				log.Println(err)
+				log.Println("decoding error: ", err)
 			}
 
 			if err := fs.handleMessage(rpc.From, &msg); err != nil {
-				log.Println(err)
+				log.Println("handling message error: ", err)
 			}
 
 		case <-fs.quitChannel:
@@ -151,7 +189,18 @@ func (fs *FileServer) loop() {
 	}
 }
 
-func (fs *FileServer) handleMessageStoreFile(from string, msg *MessageStoreFile) error {
+func (fs *FileServer) handleMessage(from string, msg *Message) error {
+	switch v := msg.Payload.(type) {
+	case MessageStoreFile:
+		return fs.handleMessageStoreFile(from, v)
+	case MessageGetFile:
+		return fs.handleMessageGetFile(from, v)
+	}
+
+	return nil
+}
+
+func (fs *FileServer) handleMessageStoreFile(from string, msg MessageStoreFile) error {
 	peer, ok := fs.peers[from]
 
 	if !ok {
@@ -170,11 +219,30 @@ func (fs *FileServer) handleMessageStoreFile(from string, msg *MessageStoreFile)
 	return nil
 }
 
-func (fs *FileServer) handleMessage(from string, msg *Message) error {
-	switch v := msg.Payload.(type) {
-	case MessageStoreFile:
-		return fs.handleMessageStoreFile(from, &v)
+func (fs *FileServer) handleMessageGetFile(from string, msg MessageGetFile) error {
+	if !fs.store.Has(msg.Key) {
+		return fmt.Errorf("need to serve but file (%s) doesn't exist on disk", msg.Key)
 	}
+
+	fmt.Printf("got file %s serving over the network\n", msg.Key)
+
+	r, err := fs.store.Read(msg.Key)
+
+	if err != nil {
+		return err
+	}
+
+	peer, ok := fs.peers[from]
+	if !ok {
+		return fmt.Errorf("peer %s not in map", from)
+	}
+
+	n, err := io.Copy(peer, r)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("written %d bytes over the network to %s\n", n, from)
 
 	return nil
 }
