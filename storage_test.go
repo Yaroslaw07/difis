@@ -39,7 +39,7 @@ func TestStore(t *testing.T) {
 			t.Errorf("Has failed: %v", ok)
 		}
 
-		r, err := s.Read(key)
+		_, r, err := s.Read(key)
 		if err != nil {
 			t.Errorf("Read failed: %v", err)
 		}

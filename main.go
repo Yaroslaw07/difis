@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"time"
 
@@ -21,7 +21,7 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 		StorageRoot:       listenAddr + "_network",
 		PathTransformFunc: CASPathTransformFunc,
 		Transport:         tcpTransport,
-		BootStrapNodes:    nodes,
+		BootstrapNodes:    nodes,
 	}
 
 	fs := NewFileServer(fileServerOpts)
@@ -43,23 +43,19 @@ func main() {
 	go fs2.Start()
 	time.Sleep(2 * time.Second)
 
-	for i := range 10 {
-		data := bytes.NewReader([]byte("big data file"))
-		fs2.StoreData(fmt.Sprintf("private_data_%d", i), data)
-		time.Sleep(5 * time.Millisecond)
+	// data := bytes.NewReader([]byte("big data file"))
+	// fs2.StoreData("cool_picture.jpg", data)
+	// time.Sleep(5 * time.Millisecond)
+
+	r, err := fs2.Get("cool_picture.jpg")
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	// r, err := fs2.Get("private_data")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	b, err := io.ReadAll(r)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// b, err := io.ReadAll(r)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// fmt.Println(string(b))
-
-	select {}
+	fmt.Println(string(b))
 }
