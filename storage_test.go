@@ -32,7 +32,7 @@ func TestStore(t *testing.T) {
 		key := fmt.Sprintf("key-%d", i)
 		data := []byte("some data")
 
-		if _, err := s.Write(key, id, bytes.NewReader(data)); err != nil {
+		if _, err := s.Write(id, key, bytes.NewReader(data)); err != nil {
 			t.Errorf("writeStream failed: %v", err)
 		}
 
