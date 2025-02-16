@@ -52,7 +52,7 @@ func main() {
 		data := bytes.NewReader([]byte("big data file"))
 		fs3.StoreData(key, data)
 
-		if err := fs3.store.Delete(key); err != nil {
+		if err := fs3.store.Delete(fs3.ID, key); err != nil {
 			log.Fatal(err)
 		}
 

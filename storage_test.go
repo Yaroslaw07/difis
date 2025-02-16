@@ -25,21 +25,22 @@ func TestPathTransformFunc(t *testing.T) {
 
 func TestStore(t *testing.T) {
 	s := newStore()
+	id := generateID()
 	defer teardown(t, s)
 
 	for i := 0; i < 50; i++ {
 		key := fmt.Sprintf("key-%d", i)
 		data := []byte("some data")
 
-		if _, err := s.Write(key, bytes.NewReader(data)); err != nil {
+		if _, err := s.Write(key, id, bytes.NewReader(data)); err != nil {
 			t.Errorf("writeStream failed: %v", err)
 		}
 
-		if ok := s.Has(key); !ok {
+		if ok := s.Has(id, key); !ok {
 			t.Errorf("Has failed: %v", ok)
 		}
 
-		_, r, err := s.Read(key)
+		_, r, err := s.Read(id, key)
 		if err != nil {
 			t.Errorf("Read failed: %v", err)
 		}
@@ -49,11 +50,11 @@ func TestStore(t *testing.T) {
 			t.Errorf("want %s, have %s", data, b)
 		}
 
-		if err := s.Delete(key); err != nil {
+		if err := s.Delete(id, key); err != nil {
 			t.Errorf("Delete failed: %v", err)
 		}
 
-		if ok := s.Has(key); ok {
+		if ok := s.Has(id, key); ok {
 			t.Errorf("Has detected deleted key  %v", key)
 		}
 	}
