@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"time"
 
@@ -38,13 +38,16 @@ func main() {
 	go func() {
 		log.Fatal(fs1.Start())
 	}()
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	go fs2.Start()
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
-	data := bytes.NewReader([]byte("big data file"))
-	fs2.StoreData("private_data", data)
+	for i := range 10 {
+		data := bytes.NewReader([]byte("big data file"))
+		fs2.StoreData(fmt.Sprintf("private_data_%d", i), data)
+		time.Sleep(5 * time.Millisecond)
+	}
 
 	// r, err := fs2.Get("private_data")
 	// if err != nil {

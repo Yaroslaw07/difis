@@ -134,10 +134,11 @@ func (fs *FileServer) StoreData(key string, r io.Reader) error {
 		return err
 	}
 
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Millisecond * 5)
 
 	// TODO: use a multiwriter
 	for _, peer := range fs.peers {
+		peer.Send([]byte{p2p.IncomingStream})
 		n, err := io.Copy(peer, fileBuffer)
 
 		if err != nil {
@@ -214,7 +215,7 @@ func (fs *FileServer) handleMessageStoreFile(from string, msg MessageStoreFile) 
 	}
 
 	fmt.Printf("Written %d bytes to disk\n", n)
-	peer.(*p2p.TCPPeer).Wg.Done()
+	peer.(*p2p.TCPPeer).CloseStream()
 
 	return nil
 }
@@ -265,6 +266,7 @@ func (fs *FileServer) broadcast(msg *Message) error {
 	}
 
 	for _, peer := range fs.peers {
+		peer.Send([]byte{p2p.IncomingMessage})
 		if err := peer.Send(buf.Bytes()); err != nil {
 			return err
 		}
