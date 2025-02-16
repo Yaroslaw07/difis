@@ -51,6 +51,7 @@ func init() {
 }
 
 func (fs *FileServer) Start() error {
+	fmt.Printf("[%s] starting file server...", fs.Transport.Addr())
 	if err := fs.Transport.ListenAndAccept(); err != nil {
 		return err
 	}
@@ -145,18 +146,21 @@ func (fs *FileServer) StoreData(key string, r io.Reader) error {
 		return err
 	}
 
-	time.Sleep(time.Millisecond * 5)
+	time.Sleep(time.Millisecond * 100)
 
-	// TODO: use a multiwriter
+	peers := []io.Writer{}
 	for _, peer := range fs.peers {
-		peer.Send([]byte{p2p.IncomingStream})
-		n, err := copyEncrypt(fs.EncKey, fileBuffer, peer)
-		if err != nil {
-			return nil
-		}
-
-		fmt.Printf("received and written (%v) bytes\n", n)
+		peers = append(peers, peer)
 	}
+	mw := io.MultiWriter(peers...)
+	mw.Write([]byte{p2p.IncomingStream})
+	n, err := copyEncrypt(fs.EncKey, fileBuffer, mw)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("[%s] received and written (%v) bytes to disk\n", fs.Transport.Addr(), n)
 
 	return nil
 }
@@ -213,7 +217,6 @@ func (fs *FileServer) handleMessage(from string, msg *Message) error {
 
 func (fs *FileServer) handleMessageStoreFile(from string, msg MessageStoreFile) error {
 	peer, ok := fs.peers[from]
-
 	if !ok {
 		return fmt.Errorf("peer (%s) could not be found in the peer list", from)
 	}
@@ -224,6 +227,7 @@ func (fs *FileServer) handleMessageStoreFile(from string, msg MessageStoreFile) 
 	}
 
 	fmt.Printf("[%s] written %d bytes to disk\n", fs.Transport.Addr(), n)
+
 	peer.CloseStream()
 
 	return nil
@@ -291,6 +295,7 @@ func (fs *FileServer) bootstrapNetwork() error {
 		}
 
 		go func(addr string) {
+			fmt.Printf("[%s] attempting to connect with remote %s\n", fs.Transport.Addr(), addr)
 			if err := fs.Transport.Dial(addr); err != nil {
 				log.Println("dial error ", err)
 			}

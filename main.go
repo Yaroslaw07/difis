@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"io"
 	"log"
 	"time"
 
@@ -33,29 +35,37 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 
 func main() {
 	fs1 := makeServer(":3000", "")
-	fs2 := makeServer(":4000", ":3000")
+	fs2 := makeServer(":7000", "")
+	fs3 := makeServer(":5000", ":3000", ":7000")
 
-	go func() {
-		log.Fatal(fs1.Start())
-	}()
+	go func() { log.Fatal(fs1.Start()) }()
+	time.Sleep(4 * time.Second)
+
+	go func() { log.Fatal(fs2.Start()) }()
+	time.Sleep(4 * time.Second)
+
+	go fs3.Start()
 	time.Sleep(2 * time.Second)
 
-	go fs2.Start()
-	time.Sleep(2 * time.Second)
+	for i := range 4 {
+		key := fmt.Sprintf("picture_%d.jpg", i)
+		data := bytes.NewReader([]byte("big data file"))
+		fs3.StoreData(key, data)
 
-	data := bytes.NewReader([]byte("big data file"))
-	fs2.StoreData("cool_picture.jpg", data)
-	time.Sleep(5 * time.Millisecond)
+		if err := fs3.store.Delete(key); err != nil {
+			log.Fatal(err)
+		}
 
-	// r, err := fs2.Get("cool_picture.jpg")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+		r, err := fs3.Get(key)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// b, err := io.ReadAll(r)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+		b, err := io.ReadAll(r)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// fmt.Println(string(b))
+		fmt.Println(string(b))
+	}
 }
