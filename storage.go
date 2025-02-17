@@ -11,7 +11,10 @@ import (
 	"strings"
 )
 
-const defaultRootFolderName = "difistore"
+const (
+	pathFormat            = "%s/%s/%s"
+	defaultRootFolderName = "difistore"
+)
 
 type PathKey struct {
 	PathName string
@@ -110,7 +113,7 @@ func (s *Store) Delete(id string, key string) error {
 		log.Printf("deleted [%s] from disk", pathKey.Filename)
 	}()
 
-	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FullPath())
+	fullPathWithRoot := fmt.Sprintf(pathFormat, s.Root, id, pathKey.FullPath())
 
 	// Remove the specific file
 	if err := os.Remove(fullPathWithRoot); err != nil {
@@ -138,7 +141,7 @@ func (s *Store) Delete(id string, key string) error {
 
 func (s *Store) Has(id string, key string) bool {
 	pathKey := s.PathTransformFunc(key)
-	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FullPath())
+	fullPathWithRoot := fmt.Sprintf(pathFormat, s.Root, id, pathKey.FullPath())
 
 	_, err := os.Stat(fullPathWithRoot)
 	return !errors.Is(err, os.ErrNotExist)
@@ -150,13 +153,13 @@ func (s *Store) Clear() error {
 
 func (s *Store) openFileForWriting(id string, key string) (*os.File, error) {
 	PathKey := s.PathTransformFunc(key)
-	PathNameWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, PathKey.PathName)
+	PathNameWithRoot := fmt.Sprintf(pathFormat, s.Root, id, PathKey.PathName)
 
 	if err := os.MkdirAll(PathNameWithRoot, os.ModePerm); err != nil {
 		return nil, err
 	}
 
-	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, PathKey.FullPath())
+	fullPathWithRoot := fmt.Sprintf(pathFormat, s.Root, id, PathKey.FullPath())
 	return os.Create(fullPathWithRoot)
 }
 
@@ -171,7 +174,7 @@ func (s *Store) writeStream(id string, key string, r io.Reader) (int64, error) {
 
 func (s *Store) readStream(id string, key string) (int64, io.ReadCloser, error) {
 	pathKey := s.PathTransformFunc(key)
-	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FullPath())
+	fullPathWithRoot := fmt.Sprintf(pathFormat, s.Root, id, pathKey.FullPath())
 
 	file, err := os.Open(fullPathWithRoot)
 	if err != nil {
