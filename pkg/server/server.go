@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -10,14 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Yaroslaw07/difis/p2p"
+	"github.com/Yaroslaw07/difis/pkg/crypto"
+	"github.com/Yaroslaw07/difis/pkg/p2p"
+	"github.com/Yaroslaw07/difis/pkg/storage"
 )
 
 type FileServerOpts struct {
 	ID                string
 	EncKey            []byte
 	StorageRoot       string
-	PathTransformFunc PathTransformFunc
+	PathTransformFunc storage.PathTransformFunc
 	Transport         p2p.Transport
 	BootstrapNodes    []string
 }
@@ -28,23 +30,23 @@ type FileServer struct {
 	peerLock sync.Mutex
 	peers    map[string]p2p.Peer
 
-	store       *Store
+	store       *storage.Store
 	quitChannel chan struct{}
 }
 
 func NewFileServer(opts FileServerOpts) *FileServer {
-	storeOpts := StoreOpts{
+	storeOpts := storage.StoreOpts{
 		Root:              opts.StorageRoot,
 		PathTransformFunc: opts.PathTransformFunc,
 	}
 
 	if len(opts.ID) == 0 {
-		opts.ID = generateID()
+		opts.ID = crypto.GenerateID()
 	}
 
 	return &FileServer{
 		FileServerOpts: opts,
-		store:          NewStore(storeOpts),
+		store:          storage.NewStore(storeOpts),
 		quitChannel:    make(chan struct{}),
 		peers:          make(map[string]p2p.Peer),
 	}
@@ -100,7 +102,7 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 	msg := Message{
 		Payload: MessageGetFile{
 			ID:  fs.ID,
-			Key: hashKey(key),
+			Key: crypto.HashKey(key),
 		},
 	}
 
@@ -145,7 +147,7 @@ func (fs *FileServer) StoreData(key string, r io.Reader) error {
 	msg := Message{
 		Payload: MessageStoreFile{
 			ID:   fs.ID,
-			Key:  hashKey(key),
+			Key:  crypto.HashKey(key),
 			Size: size + 16,
 		},
 	}
@@ -162,7 +164,7 @@ func (fs *FileServer) StoreData(key string, r io.Reader) error {
 	}
 	mw := io.MultiWriter(peers...)
 	mw.Write([]byte{p2p.IncomingStream})
-	n, err := copyEncrypt(fs.EncKey, fileBuffer, mw)
+	n, err := crypto.CopyEncrypt(fs.EncKey, fileBuffer, mw)
 
 	if err != nil {
 		return err

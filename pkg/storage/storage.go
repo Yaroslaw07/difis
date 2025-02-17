@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"crypto/sha1"
@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/Yaroslaw07/difis/pkg/crypto"
 )
 
 const (
@@ -98,7 +100,7 @@ func (s *Store) WriteDecrypt(encKey []byte, id string, key string, r io.Reader) 
 		return 0, err
 	}
 
-	numbOfBytes, err := copyEncrypt(encKey, r, file)
+	numbOfBytes, err := crypto.CopyEncrypt(encKey, r, file)
 	return int64(numbOfBytes), err
 }
 

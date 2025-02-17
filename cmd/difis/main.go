@@ -7,26 +7,30 @@ import (
 	"log"
 	"time"
 
-	"github.com/Yaroslaw07/difis/p2p"
+	"github.com/Yaroslaw07/difis/pkg/crypto"
+	"github.com/Yaroslaw07/difis/pkg/p2p"
+	"github.com/Yaroslaw07/difis/pkg/server"
+	"github.com/Yaroslaw07/difis/pkg/storage"
+	"github.com/Yaroslaw07/difis/pkg/tcp"
 )
 
-func makeServer(listenAddr string, nodes ...string) *FileServer {
-	tcpTransportOpts := p2p.TCPTransportOpts{
+func makeServer(listenAddr string, nodes ...string) *server.FileServer {
+	tcpTransportOpts := tcp.TCPTransportOpts{
 		ListenAddr:    listenAddr,
 		HandshakeFunc: p2p.NOPHandshakeFunc,
 		Decoder:       p2p.DefaultDecoder{},
 	}
-	tcpTransport := p2p.NewTCPTransport(tcpTransportOpts)
+	tcpTransport := tcp.NewTCPTransport(tcpTransportOpts)
 
-	fileServerOpts := FileServerOpts{
-		EncKey:            newEncryptionKey(),
+	fileServerOpts := server.FileServerOpts{
+		EncKey:            crypto.NewEncryptionKey(),
 		StorageRoot:       listenAddr + "_network",
-		PathTransformFunc: CASPathTransformFunc,
+		PathTransformFunc: storage.CASPathTransformFunc,
 		Transport:         tcpTransport,
 		BootstrapNodes:    nodes,
 	}
 
-	fs := NewFileServer(fileServerOpts)
+	fs := server.NewFileServer(fileServerOpts)
 
 	tcpTransport.OnPeer = fs.OnPeer
 
@@ -52,9 +56,9 @@ func main() {
 		data := bytes.NewReader([]byte("big data file"))
 		fs3.StoreData(key, data)
 
-		if err := fs3.store.Delete(fs3.ID, key); err != nil {
-			log.Fatal(err)
-		}
+		// if err := fs3.store.Delete(fs3.ID, key); err != nil {
+		// 	log.Fatal(err)
+		// }
 
 		r, err := fs3.Get(key)
 		if err != nil {

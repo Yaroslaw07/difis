@@ -1,4 +1,4 @@
-package p2p
+package tcp
 
 import (
 	"errors"
@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 	"sync"
+
+	"github.com/Yaroslaw07/difis/pkg/p2p"
 )
 
 // TCPPeer is a struct that represents a node in the TCP connection
@@ -39,21 +41,21 @@ func (p *TCPPeer) CloseStream() {
 
 type TCPTransportOpts struct {
 	ListenAddr    string
-	HandshakeFunc HandshakeFunc
-	Decoder       Decoder
-	OnPeer        func(Peer) error
+	HandshakeFunc p2p.HandshakeFunc
+	Decoder       p2p.Decoder
+	OnPeer        func(p2p.Peer) error
 }
 
 type TCPTransport struct {
 	TCPTransportOpts
 	listener net.Listener
-	rpcch    chan RPC
+	rpcch    chan p2p.RPC
 }
 
 func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	return &TCPTransport{
 		TCPTransportOpts: opts,
-		rpcch:            make(chan RPC),
+		rpcch:            make(chan p2p.RPC),
 	}
 }
 
@@ -65,7 +67,7 @@ func (t *TCPTransport) Addr() string {
 
 // Consume is implementing Transport interface, which will return read-only
 // channel for reading messages from another peer
-func (t *TCPTransport) Consume() <-chan RPC {
+func (t *TCPTransport) Consume() <-chan p2p.RPC {
 	return t.rpcch
 }
 
@@ -140,7 +142,7 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 
 	// Read loop
 	for {
-		rpc := RPC{}
+		rpc := p2p.RPC{}
 		err = t.Decoder.Decode(conn, &rpc)
 		if err != nil {
 			return
