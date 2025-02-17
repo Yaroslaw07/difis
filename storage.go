@@ -107,12 +107,33 @@ func (s *Store) Delete(id string, key string) error {
 	pathKey := s.PathTransformFunc(key)
 
 	defer func() {
-		log.Printf("deleted: [%s] from disk", pathKey.Filename)
+		log.Printf("deleted [%s] from disk", pathKey.Filename)
 	}()
 
-	fistPathNameWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FirstPathName())
+	fullPathWithRoot := fmt.Sprintf("%s/%s/%s", s.Root, id, pathKey.FullPath())
 
-	return os.RemoveAll(fistPathNameWithRoot)
+	// Remove the specific file
+	if err := os.Remove(fullPathWithRoot); err != nil {
+		return fmt.Errorf("failed to delete file: %w", err)
+	}
+
+	// We then can clean up empty directories
+	subFolders := strings.Split(fullPathWithRoot, "/")
+	for i := len(subFolders) - 2; i >= 0; i-- {
+		subPath := strings.Join(subFolders[:i+1], "/")
+		isEmpty, err := isDirEmpty(subPath)
+		if err != nil {
+			return err
+		}
+		if !isEmpty {
+			break
+		}
+		if err := os.Remove(subPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (s *Store) Has(id string, key string) bool {
@@ -163,4 +184,18 @@ func (s *Store) readStream(id string, key string) (int64, io.ReadCloser, error) 
 	}
 
 	return fi.Size(), file, err
+}
+
+func isDirEmpty(dir string) (bool, error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = f.ReadDir(1)
+	if err == io.EOF {
+		return true, nil
+	}
+
+	return false, err
 }
