@@ -9,9 +9,9 @@ import (
 
 	"github.com/Yaroslaw07/difis/pkg/crypto"
 	"github.com/Yaroslaw07/difis/pkg/p2p"
+	"github.com/Yaroslaw07/difis/pkg/p2p/transports/tcp"
 	"github.com/Yaroslaw07/difis/pkg/server"
 	"github.com/Yaroslaw07/difis/pkg/storage"
-	"github.com/Yaroslaw07/difis/pkg/tcp"
 )
 
 func makeServer(listenAddr string, nodes ...string) *server.FileServer {
