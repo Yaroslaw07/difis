@@ -53,8 +53,8 @@ func NewFileServer(opts FileServerOpts) *FileServer {
 }
 
 func init() {
-	gob.Register(MessageStoreFile{})
-	gob.Register(MessageGetFile{})
+	gob.Register(MessageSaveFile{})
+	gob.Register(MessageLoadFile{})
 	gob.Register(MessageDeleteFile{})
 	gob.Register(MessageWrapper{})
 }
@@ -76,7 +76,7 @@ func (fs *FileServer) Stop() {
 	close(fs.quitChannel)
 }
 
-func (fs *FileServer) Get(key string) (io.Reader, error) {
+func (fs *FileServer) Load(key string) (io.Reader, error) {
 	if fs.store.Has(fs.ID, key) {
 		fmt.Printf("[%s] serving file (%s) from local disk\n", fs.Transport.Addr(), key)
 
@@ -87,8 +87,8 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 	fmt.Printf("[%s] don't have file (%s) locally, fetching from network...\n", fs.Transport.Addr(), key)
 
 	msg := MessageWrapper{
-		Type:    MessageTypeGet,
-		Payload: newMessageGetFile(fs.ID, crypto.HashKey(key)),
+		Type:    MessageTypeLoad,
+		Payload: newMessageLoadFile(fs.ID, crypto.HashKey(key)),
 	}
 
 	if err := fs.broadcast(&msg); err != nil {
@@ -117,7 +117,7 @@ func (fs *FileServer) Get(key string) (io.Reader, error) {
 	return r, err
 }
 
-func (fs *FileServer) StoreData(key string, r io.Reader) error {
+func (fs *FileServer) Save(key string, r io.Reader) error {
 	var (
 		fileBuffer = new(bytes.Buffer)
 		tee        = io.TeeReader(r, fileBuffer)
@@ -130,8 +130,8 @@ func (fs *FileServer) StoreData(key string, r io.Reader) error {
 	}
 
 	msg := MessageWrapper{
-		Type:    MessageTypeStore,
-		Payload: newMessageStoreFile(fs.ID, crypto.HashKey(key), size),
+		Type:    MessageTypeSave,
+		Payload: newMessageSaveFile(fs.ID, crypto.HashKey(key), size),
 	}
 
 	if err := fs.broadcast(&msg); err != nil {
@@ -155,11 +155,6 @@ func (fs *FileServer) StoreData(key string, r io.Reader) error {
 	fmt.Printf("[%s] received and written (%v) bytes to disk\n", fs.Transport.Addr(), n)
 
 	return nil
-}
-
-func (fs *FileServer) Store(key string, r io.Reader) error {
-	_, err := fs.store.Write(fs.ID, key, r)
-	return err
 }
 
 func (fs *FileServer) OnPeer(p p2p.Peer) error {

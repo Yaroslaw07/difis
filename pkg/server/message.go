@@ -12,8 +12,8 @@ type MessageType int
 
 const (
 	None MessageType = iota
-	MessageTypeStore
-	MessageTypeGet
+	MessageTypeSave
+	MessageTypeLoad
 	MessageTypeDelete
 )
 
@@ -27,12 +27,12 @@ type Message struct {
 	Key string
 }
 
-type MessageGetFile struct {
+type MessageLoadFile struct {
 	Message
 }
 
-func newMessageGetFile(id, key string) MessageGetFile {
-	return MessageGetFile{
+func newMessageLoadFile(id, key string) MessageLoadFile {
+	return MessageLoadFile{
 		Message: Message{
 			ID:  id,
 			Key: key,
@@ -40,15 +40,15 @@ func newMessageGetFile(id, key string) MessageGetFile {
 	}
 }
 
-type MessageStoreFile struct {
+type MessageSaveFile struct {
 	Message
 	Size int64
 }
 
 const AESBlockSize = 16
 
-func newMessageStoreFile(id, key string, size int64) MessageStoreFile {
-	return MessageStoreFile{
+func newMessageSaveFile(id, key string, size int64) MessageSaveFile {
+	return MessageSaveFile{
 		Message: Message{
 			ID:  id,
 			Key: key,
@@ -72,15 +72,15 @@ func newMessageDeleteFile(id, key string) MessageDeleteFile {
 
 func (fs *FileServer) handleMessage(from string, msg *MessageWrapper) error {
 	switch v := msg.Type; v {
-	case MessageTypeStore:
-		if storeMsg, ok := msg.Payload.(MessageStoreFile); ok {
+	case MessageTypeSave:
+		if storeMsg, ok := msg.Payload.(MessageSaveFile); ok {
 			return fs.handleMessageStoreFile(from, storeMsg)
 		}
 
 		return fmt.Errorf("message type store but payload is not of type MessageStoreFile")
-	case MessageTypeGet:
-		if getMsg, ok := msg.Payload.(MessageGetFile); ok {
-			return fs.handleMessageGetFile(from, getMsg)
+	case MessageTypeLoad:
+		if getMsg, ok := msg.Payload.(MessageLoadFile); ok {
+			return fs.handleMessageLoadFile(from, getMsg)
 		}
 
 		return fmt.Errorf("message type get but payload is not of type MessageGetFile")
@@ -95,7 +95,7 @@ func (fs *FileServer) handleMessage(from string, msg *MessageWrapper) error {
 	return nil
 }
 
-func (fs *FileServer) handleMessageStoreFile(from string, msg MessageStoreFile) error {
+func (fs *FileServer) handleMessageStoreFile(from string, msg MessageSaveFile) error {
 	peer, ok := fs.peers[from]
 	if !ok {
 		return fmt.Errorf("peer (%s) could not be found in the peer list", from)
@@ -113,7 +113,7 @@ func (fs *FileServer) handleMessageStoreFile(from string, msg MessageStoreFile) 
 	return nil
 }
 
-func (fs *FileServer) handleMessageGetFile(from string, msg MessageGetFile) error {
+func (fs *FileServer) handleMessageLoadFile(from string, msg MessageLoadFile) error {
 	if !fs.store.Has(msg.ID, msg.Key) {
 		return fmt.Errorf("[%s] need to serve but file (%s) doesn't exist on disk", fs.Transport.Addr(), msg.Key)
 	}

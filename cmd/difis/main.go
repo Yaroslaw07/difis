@@ -54,13 +54,13 @@ func main() {
 	for i := range 4 {
 		key := fmt.Sprintf("picture_%d.jpg", i)
 		data := bytes.NewReader([]byte("big data file"))
-		fs3.StoreData(key, data)
+		fs3.Save(key, data)
 
-		// if err := fs3.store.Delete(fs3.ID, key); err != nil {
-		// 	log.Fatal(err)
-		// }
+		if err := fs3.DeleteLocally(key); err != nil {
+			log.Fatal(err)
+		}
 
-		r, err := fs3.Get(key)
+		r, err := fs3.Load(key)
 		if err != nil {
 			log.Fatal(err)
 		}
