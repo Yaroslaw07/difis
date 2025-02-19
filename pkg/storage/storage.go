@@ -124,7 +124,7 @@ func (s *Store) Delete(id string, key string) error {
 
 	// We then can clean up empty directories
 	subFolders := strings.Split(fullPathWithRoot, "/")
-	for i := len(subFolders) - 2; i >= 0; i-- {
+	for i := len(subFolders) - 2; i > 0; i-- {
 		subPath := strings.Join(subFolders[:i+1], "/")
 		isEmpty, err := isDirEmpty(subPath)
 		if err != nil {

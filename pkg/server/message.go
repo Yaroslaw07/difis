@@ -151,5 +151,22 @@ func (fs *FileServer) handleMessageLoadFile(from string, msg MessageLoadFile) er
 }
 
 func (fs *FileServer) handleMessageDeleteFile(from string, msg MessageDeleteFile) error {
+	fmt.Printf("here")
+	_, ok := fs.peers[from]
+	if !ok {
+		return fmt.Errorf("peer %s not in map", from)
+	}
+
+	if !fs.store.Has(msg.ID, msg.Key) {
+		return fmt.Errorf("[%s] need to delete but file (%s) doesn't exist on disk", fs.Transport.Addr(), msg.Key)
+	}
+
+	if err := fs.store.Delete(msg.ID, msg.Key); err != nil {
+		return err
+	}
+
+	fmt.Printf("[%s] deleted file (%s) from disk\n", fs.Transport.Addr(), msg.Key)
+
 	return nil
+
 }

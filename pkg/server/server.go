@@ -15,6 +15,13 @@ import (
 	"github.com/Yaroslaw07/difis/pkg/storage"
 )
 
+func init() {
+	gob.Register(MessageSaveFile{})
+	gob.Register(MessageLoadFile{})
+	gob.Register(MessageDeleteFile{})
+	gob.Register(MessageWrapper{})
+}
+
 type FileServerOpts struct {
 	ID                string
 	EncKey            []byte
@@ -50,13 +57,6 @@ func NewFileServer(opts FileServerOpts) *FileServer {
 		quitChannel:    make(chan struct{}),
 		peers:          make(map[string]p2p.Peer),
 	}
-}
-
-func init() {
-	gob.Register(MessageSaveFile{})
-	gob.Register(MessageLoadFile{})
-	gob.Register(MessageDeleteFile{})
-	gob.Register(MessageWrapper{})
 }
 
 func (fs *FileServer) Start() error {
@@ -153,6 +153,24 @@ func (fs *FileServer) Save(key string, r io.Reader) error {
 	}
 
 	fmt.Printf("[%s] received and written (%v) bytes to disk\n", fs.Transport.Addr(), n)
+
+	return nil
+}
+
+func (fs *FileServer) Delete(key string) error {
+	if fs.store.Has(fs.ID, key) {
+		fs.store.Delete(fs.ID, key)
+		fmt.Printf("[%s] deleted file (%s) from local disk\n", fs.Transport.Addr(), key)
+	}
+
+	msg := MessageWrapper{
+		Type:    MessageTypeDelete,
+		Payload: newMessageDeleteFile(fs.ID, crypto.HashKey(key)),
+	}
+
+	if err := fs.broadcast(&msg); err != nil {
+		return err
+	}
 
 	return nil
 }

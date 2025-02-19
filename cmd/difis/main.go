@@ -51,7 +51,7 @@ func main() {
 	go fs3.Start()
 	time.Sleep(2 * time.Second)
 
-	for i := range 4 {
+	for i := range 1 {
 		key := fmt.Sprintf("picture_%d.jpg", i)
 		data := bytes.NewReader([]byte("big data file"))
 		fs3.Save(key, data)
@@ -65,11 +65,20 @@ func main() {
 			log.Fatal(err)
 		}
 
-		b, err := io.ReadAll(r)
+		_, err = io.ReadAll(r)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		fmt.Println(string(b))
 	}
+
+	for i := range 1 {
+		key := fmt.Sprintf("picture_%d.jpg", i)
+		err := fs3.Delete(key)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	select {}
 }
